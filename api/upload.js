@@ -1,52 +1,52 @@
-const axios = require('axios');
-const FormData = require('form-data');
-const formidable = require('formidable');  // Import formidable for handling file uploads
+// /api/upload.js
+import axios from 'axios';
 
-const IMAGEKIT_PUBLIC_KEY = 'public_cl2IvhD5fdLu2jVbH5kaLufybGI=';
-const IMAGEKIT_PRIVATE_KEY = 'private_ytjZ6oLP3jcX9sgnhvQj3F7K6CQ=';
-const IMAGEKIT_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+export default async function handler(req, res) {
+  // Allow CORS for dev/testing
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-module.exports = (req, res) => {
-  // Initialize formidable to handle incoming form data
-  const form = new formidable.IncomingForm();
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-  // Parse the incoming request
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to parse form data' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { image, fileName, token, expire, signature } = req.body;
+
+    if (!image || !fileName || !signature || !token || !expire) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Destructure the necessary fields and files
-    const { image } = files;  // The uploaded image file
-    const { fileName, signature, expire, token } = fields;  // Other form fields
-
-    // Check if the image is provided
-    if (!image) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
-
-    // Prepare the form data for ImageKit
-    const formData = new FormData();
-    formData.append('file', image[0]);  // Assuming 'image' is an array, use the first item
-    formData.append('fileName', fileName);
-    formData.append('publicKey', IMAGEKIT_PUBLIC_KEY);
-    formData.append('signature', signature);
-    formData.append('expire', expire);
-    formData.append('token', token);
-
-    try {
-      // Send the file data to ImageKit
-      const response = await axios.post(IMAGEKIT_URL, formData, {
+    const response = await axios.post(
+      'https://upload.imagekit.io/api/v1/files/upload',
+      {
+        file: image, // base64 string
+        fileName,
+        token,
+        expire,
+        signature,
+      },
+      {
         headers: {
-          ...formData.getHeaders(),
+          'Content-Type': 'application/json',
         },
-      });
+        auth: {
+          username: 'public_cl2IvhD5fdLu2jVbH5kaLufybGI=',
+          password: 'private_ytjZ6oLP3jcX9sgnhvQj3F7K6CQ=',
+        },
+      }
+    );
 
-      // Return the image URL from ImageKit
-      return res.json({ imageUrl: response.data.url });
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      return res.status(500).send('Image upload failed');
-    }
-  });
-};
+    return res.status(200).json({ imageUrl: response.data.url });
+  } catch (error) {
+    console.error('ImageKit upload error:', error?.response?.data || error.message);
+    return res.status(500).json({
+      error: 'Upload failed',
+      details: error?.response?.data || error.message,
+    });
+  }
+}

@@ -1,23 +1,20 @@
-// api/get_imagekit_auth.js (Vercel function)
+// /api/auth.js
+import crypto from 'crypto';
 
-const axios = require('axios');
+export default function handler(req, res) {
+  const IMAGEKIT_PRIVATE_KEY = 'private_ytjZ6oLP3jcX9sgnhvQj3F7K6CQ=';
 
-const IMAGEKIT_PUBLIC_KEY = 'public_cl2IvhD5fdLu2jVbH5kaLufybGI=';
-const IMAGEKIT_PRIVATE_KEY = 'private_ytjZ6oLP3jcX9sgnhvQj3F7K6CQ=';
-const IMAGEKIT_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+  const token = crypto.randomBytes(16).toString('hex');
+  const expire = Math.floor(Date.now() / 1000) + 600; // 10 minutes from now
 
-module.exports = async (req, res) => {
-  try {
-    const response = await axios.get('your-backend-url-to-fetch-auth-data');
+  const signature = crypto
+    .createHmac('sha1', IMAGEKIT_PRIVATE_KEY)
+    .update(token + expire)
+    .digest('hex');
 
-    if (response.status !== 200) {
-      return res.status(500).send('Failed to get ImageKit auth data');
-    }
-
-    // Return the auth data from your backend
-    res.status(200).json(response.data); 
-  } catch (error) {
-    console.error('Error getting ImageKit auth data:', error);
-    res.status(500).send('Internal Server Error');
-  }
-};
+  res.status(200).json({
+    token,
+    expire,
+    signature,
+  });
+}
