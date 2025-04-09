@@ -7,7 +7,7 @@
     "start": "node upload.js"
   },
   "dependencies": {
-    "axios": "^1.8.4",
+    "axios": "^0.21.1",
     "formidable": "^2.0.1"
   }
 }
